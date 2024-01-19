@@ -1,5 +1,7 @@
 import autogen
 from autogen.agentchat.contrib.multimodal_conversable_agent import MultimodalConversableAgent
+from inventory import get_inventory, get_inventory_declaration
+from send_mail import send_mail, send_email_declaration
 
 config_list = autogen.config_list_from_json('OAI_CONFIG_LIST')
 
@@ -7,10 +9,18 @@ config_list_v4 = autogen.config_list_from_json('OAI_CONFIG_LIST', filter_dict={
     "model": ["gpt-4-vision-preview"]
 })
 
+
+def is_termination_msg(data):
+    has_content = "content" in data and data["content"] is not None
+    return has_content and "TERMINATE" in data["content"]
+
+
 user_proxy = autogen.UserProxyAgent(
     name="user_proxy",
     system_message="You're the boss",
-    human_input_mode="NEVER"
+    human_input_mode="NEVER",
+    is_termination_msg=is_termination_msg,
+    function_map={"get_inventory": get_inventory, "send_mail": send_mail}
 )
 
 damage_analyst = MultimodalConversableAgent(
@@ -28,20 +38,22 @@ inventory_manager = autogen.AssistantAgent(
       As the inventory manager you provide information about the availability and pricing of spare parts.
       For the time being respond that everything is available.
     """,
-    llm_config={"config_list": config_list}
+    llm_config={"config_list": config_list,
+                "functions": [get_inventory_declaration]}
 )
 
 customer_support_agent = autogen.AssistantAgent(
     name="customer_support_agent",
     system_message="""
-      As a customer support agent you are responsible for drafting emails following confirmation of inventory and pricing. 
+      As a customer support agent you are responsible for drafting and sending emails following confirmation of inventory and pricing. 
       Respond with "TERMINATE" when you have finished.
     """,
-    llm_config={"config_list": config_list}
+    llm_config={"config_list": config_list, "functions": [send_email_declaration]}
 )
 
 groupchat = autogen.GroupChat(
-    agents=[user_proxy, inventory_manager, customer_support_agent, damage_analyst], messages=[]
+    agents=[user_proxy, inventory_manager,
+            customer_support_agent, damage_analyst], messages=[]
 )
 
 manager = autogen.GroupChatManager(
@@ -57,13 +69,10 @@ user_proxy.initiate_chat(
 
       Step 2: Inventory Manager verifies part availability in the database
 
-      Step 3: Customer Support Agent composes a response email
+      Step 3: Customer Support Agent composes and sends a response email
 
-      Step 4: Colclude the process with sending 'TERMINATE'
-
+      E-Mail of the customer: bob@foe.de
       Image Reference: 'https://teslamotorsclub.com/tmc/attachments/camphoto_1144747756-jpg.650059/'
       
     """
 )
-
-
