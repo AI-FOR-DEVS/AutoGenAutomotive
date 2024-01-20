@@ -59,4 +59,4 @@ def get_inventory():
 
 # setup_database()
 # insert_sample_data()
-print(get_inventory())
+# print(get_inventory())

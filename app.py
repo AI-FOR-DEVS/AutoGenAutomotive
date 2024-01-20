@@ -2,6 +2,22 @@ import autogen
 from autogen.agentchat.contrib.multimodal_conversable_agent import MultimodalConversableAgent
 from inventory import get_inventory, get_inventory_declaration
 from send_mail import send_mail, send_email_declaration
+from flask import Flask, render_template, request
+
+app = Flask(__name__)
+
+@app.route('/', methods=['GET', 'POST'])
+def index():
+    if request.method == 'POST':
+      image_url = request.form['image']
+      customer_email = request.form['email']
+      customer_message = request.form['message']
+
+      initiate_chat(image_url, customer_email, customer_message)
+
+      return render_template('result.html')
+    else:
+       return render_template('index.html')
 
 config_list = autogen.config_list_from_json('OAI_CONFIG_LIST')
 
@@ -60,19 +76,24 @@ manager = autogen.GroupChatManager(
     groupchat=groupchat, llm_config={"config_list": config_list}
 )
 
-user_proxy.initiate_chat(
-    manager, message=f"""
-      Process Overview:
+def initiate_chat(image_url, customer_email, customer_message):
+  user_proxy.initiate_chat(
+      manager, message=f"""
+        Process Overview:
 
-      Step 1: Damage Analyst identifies the car brand and the requested part 
-        (is something central, or something broken or missing?) from the customers message and image
+        Step 1: Damage Analyst identifies the car brand and the requested part 
+          (is something central, or something broken or missing?) from the customers message and image
 
-      Step 2: Inventory Manager verifies part availability in the database
+        Step 2: Inventory Manager verifies part availability in the database
 
-      Step 3: Customer Support Agent composes and sends a response email
+        Step 3: Customer Support Agent composes and sends a response email
 
-      E-Mail of the customer: bob@foe.de
-      Image Reference: 'https://teslamotorsclub.com/tmc/attachments/camphoto_1144747756-jpg.650059/'
-      
-    """
-)
+        Customer message: '{customer_message}
+        E-Mail of the customer: '{customer_email}
+        Image Reference: '{image_url}'
+        
+      """
+  )
+
+if __name__ == '__main__':
+    app.run(debug=True)
