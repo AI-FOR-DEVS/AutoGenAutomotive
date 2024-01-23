@@ -2,9 +2,41 @@ import autogen
 from autogen.agentchat.contrib.multimodal_conversable_agent import MultimodalConversableAgent
 from inventory import get_inventory, get_inventory_declaration
 from send_mail import send_mail, send_email_declaration
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, jsonify
 
 app = Flask(__name__)
+
+def concat_assistant_messages(chat_messages):
+   messages = ""
+   for message in chat_messages:
+      if message.get('name') == 'customer_support_agent':
+        messages += message.get('content')
+   return messages
+
+@app.route('/run')
+def spare_parts():
+   query = request.args.get('query')
+
+   messages = initiate_chat_voiceflow(query)
+
+   return jsonify({"query": concat_assistant_messages(messages)})
+
+def initiate_chat_voiceflow(query):
+   user_proxy.initiate_chat(
+      manager,
+      message = f"""
+          Return the availability and price of the requested spare part 
+          and send 'TERMINATE'. 
+
+          Request: '{query}'
+
+          Output Format: 'Availability: In stock \n Price:'
+      """
+   )
+
+   messages = user_proxy.chat_messages[manager]
+
+   return messages
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
